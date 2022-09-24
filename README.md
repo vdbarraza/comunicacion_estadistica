@@ -1,1 +1,4 @@
-# comunicacion_estadistica
+# Comunicacion estadística
+
+Trabajo práctico sobre visualización
+
