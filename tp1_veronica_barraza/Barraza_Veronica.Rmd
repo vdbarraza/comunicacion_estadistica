@@ -1,0 +1,307 @@
+---
+title: "Trabajo Práctico N° 1"
+author: 'Barraza, Veronica '
+date: "Septiembre 2022"
+output:
+  html_document:
+    toc: yes
+    df_print: paged
+  pdf_document:
+    toc: yes
+    df_print: paged
+geometry: margin=2cm
+header-includes: \renewcommand\figurename{Figura}
+fontsize: 10pt
+spacing: double
+lang: "es-ARG"
+---
+
+
+```{=html}
+<style type="text/css">
+body{ /* Normal  */
+font-size: 12px;
+}
+td {  /* Table  */
+font-size: 10px;
+}
+h1.title {
+font-size: 38px;
+color: DarkRed;
+}
+h1 { /* Header 1 */
+font-size: 28px;
+color: DarkBlue;
+}
+h2 { /* Header 2 */
+font-size: 22px;
+color: DarkBlue;
+}
+h3 { /* Header 3 */
+font-size: 18px;
+color: DarkRed;
+}
+code.r{ /* Code block */
+font-size: 8px;
+}
+pre { /* Code block - determines code spacing between lines */
+font-size: 10px;
+}
+blockquote {
+font-size: 12px;
+border-left: 5px solid #eee;
+}
+</style>
+```
+
+
+## Introducción
+
+### ¿Qué es la deforestación?
+
+La deforestación es un fenómeno de reducción de la superficie forestal. La **FAO define la deforestación** como la conversión de los bosques a otro tipo de uso de la tierra (independientemente si es inducido por humanos o no). La “deforestación” y la “variación neta de la superficie forestal” son dos conceptos diferentes: esta última es la suma de todas las pérdidas forestales (deforestación) y todos los aumentos de superficies forestales (expansión forestal) en un período determinado. La variación neta, por tanto, puede ser positiva o negativa, lo cual depende de si los aumentos superan las pérdidas, o viceversa.
+
+La deforestación está causada por múltiples factores, tanto naturales como humanos, y tiene consecuencias irreversibles en el medio ambiente.
+
+- Las causas de la deforestación
+- incendio forestal
+- Los factores naturales incluyen:
+
+Incendios forestales que, además de destruir los bosques y la biodiversidad, liberan enormes cantidades de $CO^2$ a la atmósfera; Enfermedades que afectan a los árboles; Parásitos. Sin embargo, no es de extrañar que sean las actividades humanas (agricultura, construcción de infraestructuras, actividades mineras, urbanización...) las principales responsables de la deforestación en todo el mundo con la tala de árboles sin control. El desarrollo de las tierras agrícolas es la principal causa de la deforestación.
+
+La **deforestación** es un fenómeno mundial. Cada año, millones de hectáreas de bosques desaparecen para convertirse en plantaciones de palma aceitera, pastos para el ganado, cultivos de soja, etc. El último medio siglo ha supuesto el mayor coste de deforestación de la historia de la humanidad, arrasando un 15 por ciento de la superficie mundial de vegetación, equivalente al territorio de España, Portugal y Francia.
+
+Tan solo en los últimos 13 años, la deforestación ha arrasado 43 millones de hectáreas en todo el mundo, acabando con bosques y selvas de forma masiva y causando un inmenso daño a la calidad de los suelos. Los bosques todavía cubren alrededor del 30 por ciento de las regiones del mundo, pero franjas del tamaño de Panamá se pierden indefectiblemente cada año. Son las cifras del último informe Frentes de deforestación; causas y respuestas en un mundo cambiante de WWF, que analiza 24 lugares que tienen una concentración significativa de puntos críticos de deforestación y donde grandes áreas de bosque remanente están amenazadas. 
+
+El objetivo de este proyecto es visualizar las tendencias mundiales de deforestación. Los datos utilizados para este análisis se obtienen de TidyTuesday. 
+
+```{r setup, include=FALSE}
+## Clear environment
+rm(list = ls())
+knitr::opts_chunk$set(echo = FALSE)
+
+## Loading Library 
+pacman::p_load(tidyverse,readr, data.table, kableExtra, leaflet, ggpubr, gganimate, magick,ggthemes, plotly,modelsummary,scales,
+patchwork)
+
+forest <- fread('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-04-06/forest.csv')
+forest_area <- fread('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-04-06/forest_area.csv')
+brazil_loss <- fread('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-04-06/brazil_loss.csv')
+soybean_use <- fread('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-04-06/soybean_use.csv')
+```
+
+## Datos
+
+El conjunto de datos consta de 4 tablas diferentes que incluye datos desde 1990-2020. Dos de estos brindan información objetiva sobre los diferentes aspectos de los bosques, como el área forestal y la conversión neta de bosques para cada país y continente. Las otras dos tablas de datos brindan información sobre las causas de la deforestación y cuánto contribuye cada factor al tema general. Curiosamente, uno de estos conjuntos de datos es específico de Brasil e informa cuánto bosque se ha talado para diferentes propósitos en el país.
+
+Para este análisis, estaremos analizando; 
+
+1) ¿Cómo son las tendencias de deforestación en cada continente durante el período de 30 años? 
+
+2) ¿Cómo ha evolucionado geográficamente la Conversión Forestal Neta en el mundo? 
+
+3) ¿Cuáles son los 10 principales países con conversión forestal neta positiva y negativa para un año determinado? 
+
+5) ¿Cuales son los principales driver que afecta la deforestación en Brasil?
+
+## Análisis exploratorio de datos (EDA)
+
+Primero vamos a realizar una análisis de EDA para observar cada conjunto de datos y verificar el tipo de variables, si faltaban valores en nuestras variables de interés y ver su distribución. Observamos que las variables que nos interesaban no contenían ningún valor faltante. Con respecto a la distribución, observamos que había asimetría en los datos, pero dado que no estamos interesados en la predicción, no necesitamos tomar el registro de los valores asimétricos.
+
+```{r}
+summary <- datasummary(  net_forest_conversion ~ Mean + Min + Max  , data = forest, title = " Forest Summary Statistics" )
+summary %>% kableExtra::kable_styling(latex_options = "HOLD_position", position = "center")
+```
+
+```{r}
+summary1 <- datasummary(  forest_area ~ Mean + Min + Max  , data = forest_area, title = " Forest Area Summary Statistics" )
+summary1 %>% kableExtra::kable_styling(latex_options = "HOLD_position", position = "center")
+```
+
+
+
+```{r}
+summary2 <- datasummary(entity +  commercial_crops + selective_logging + pasture + fire + small_scale_clearing ~
+                          Mean + Min + Max  , data = brazil_loss, title = "Brazil Loss Statistics")
+summary2 %>% kableExtra::kable_styling(latex_options = "HOLD_position", position = "center")
+```
+
+
+## Visualización  
+
+### Tendencia de la deforestación en los continentes durante un período de 30 años
+
+Esta visualización es la tendencia del porcentaje de área forestal de cada continente, que muestra cómo cambia el área durante un período de 30 años. Esta visualización ayuda a comparar la deforestación de distintos países/continentes una al lado de la otra. Vemos que en Asia, América y Europa, el porcentaje de área forestal aumenta gradualmente de 1990 a 2020, mientras que en África el área está en una disminución lineal, lo cual es bastante alarmante. Sin embargo, en Australia vemos que el área forestal ha sido algo constante, pero después de 2010, ha habido un aumento en la cubierta forestal debido a las campañas de forestación realizadas allí.
+
+El mundo ha perdido 178 millones de hectáreas de bosque desde 1990, que es una superficie aproximadamente de la dimensión de Libia. El ritmo de pérdida neta de bosques disminuyó notablemente durante el período 1990-2020 debido a una reducción de la deforestación en algunos países, además de un aumento de la superficie forestal en otros a través de la forestación y la expansión natural de los bosques.
+
+```{r fig.cap="Cambios en el área forestal a lo largo de 30 años", out.width="80%", fig.align="center"}
+a <- forest_area[entity== "Africa"|entity=="Asia"|entity=="Australia"|entity=="Europe"|entity=="Americas"]
+ ggplot(a) +
+    aes(x = year, y = forest_area) +
+    geom_line(size = 0.5) +
+    scale_fill_viridis_d(option = "inferno", direction = 1) +
+    labs(
+      x = "Year",
+      y = "Forest Area",
+      title = "Cambios en el área forestal a lo largo de 30 años") +
+  facet_wrap(vars(entity), scales = "free",ncol=1)+
+  geom_point()
+  
+#viz + transition_reveal(year) 
+ # +scale_y_continuous(breaks = scales::pretty_breaks(n = 2))
+```
+
+Ahora podemos hacer una visualización espacial, para comprender la magnitud del área deforestada a nivel global.
+
+```{r}
+subforest = forest %>% 
+  dplyr::filter(net_forest_conversion != 0) %>% 
+  tidyr::complete(expand(., nesting(entity, code), year), 
+                  fill = list(net_forest_conversion = NA)) %>% 
+  dplyr::mutate(net_forest_conversion_log10 = sign(net_forest_conversion)*log10(abs(net_forest_conversion)))
+```
+
+```{r fig.cap="Visulización espacial  del área forestal a lo largo de 30 años", out.width="80%", fig.align="center"}
+fig <- plot_ly(
+  subforest,
+  type = 'choropleth',
+  locations = ~code,
+  z = ~net_forest_conversion_log10,
+  text = ~entity,
+  frame = ~year,
+  colors = "RdYlGn") %>% 
+  layout(
+    #geo = list(projection = list(type = "orthographic")),
+    showlegend = FALSE)
+
+fig
+```
+
+Para finalizar esta sección veamos a nivel global cual fue el cambio neto del area forestada (forestación menos deforestación). Se observa claramente, que los cambios netos son negativos lo que indica que la tasa de deforestación de bosques nativos y forestaciones son mayores al incremento de área forestal.
+
+```{r  fig.cap="Cambios netos en el área forestal a lo largo de 30 años a nivel mundial", out.width="80%", fig.align="center"}
+  forest%>%
+    filter(entity== 'World')%>%
+    group_by(year)%>%
+    summarise(cum=cumsum(net_forest_conversion)) %>%
+  ggplot(aes(year,cum) )+
+  geom_bar(stat = "identity", fill="blue")+
+  xlab("Year")+
+  ggtitle("Net change in forest area (afforestation minus deforestation)", subtitle = "cumulative in ha in the world")
+```
+
+### Los 10 principales países con Conversión Forestal Neta positiva y negativa en 2015
+
+En el siguiente gráfico se observa un total de 10 países para 2015, 5 países con la conversión forestal neta positiva más alta (representando la forestación) y 5 países con la conversión forestal neta negativa más alta (representando la deforestación).Durante la última década, se han estado perdiendo anualmente 4,7 millones de hectáreas de bosques, con Brasil, la República Democrática del Congo, Indonesia  entre los países más afectados. 
+
+
+```{r  fig.cap="Cambios netos en el área forestal para 2015", out.width="80%", fig.align="center"}
+b <- forest[year==2015]
+b <- b[order(-rank(net_forest_conversion))]
+
+
+b1 <- b[1:5]
+b2 <- b[116:120]
+b3 <- rbindlist(list(b1, b2), fill=T)
+
+ ggplot(b3,aes(net_forest_conversion, entity, fill= net_forest_conversion > 0 ))+ 
+  geom_col() +  scale_fill_manual(values = c("red", "seagreen3"))+
+  scale_x_continuous(labels = scales::comma)+
+  labs(x="Net change in forest (Hectares)", y= "")+
+  ggtitle(" Net Forest Conversion for 2015")+
+  theme_classic2()+
+  theme(legend.position = "none")
+ 
+```
+
+## The case of Brazil
+
+Brazil has the biggest tropical rainforest in the world. Brazil once had the highest deforestation rate in the world and in 2005 still had the largest area of forest removed annually. Since 1970, over 700,000 square kilometres (270,000 sq mi) of the Amazon rainforest have been destroyed. In 2012, the Amazon was approximately 5,400,000 square kilometres (2,100,000 sq mi), which is only 87% of the Amazon’s original size.
+
+
+### Causas de deforestacion de Brazil
+
+En este apartado vamos a evaluar los drivers de las deforestación en Brazil.
+
+```{r}
+
+brazil_loss_stacked <- brazil_loss %>% # Creating a new object
+  pivot_longer(cols = starts_with(c("commercial_crops", "flooding_due_to_dams",  "natural_disturbances", "pasture", "selective_logging",
+                                    "fire", "mining",  "other_infrastructure", "roads", "tree_plantations_including_palm", "small_scale_clearing")), # Stretching out the dataframe
+               names_to = "Causes",
+               values_to = "Hectare") %>%
+  group_by(year) # Defininf new columns for the names, values and deciding to group by year
+#brazil_loss_stacked
+# Changing names for simplicity
+names(brazil_loss_stacked)[names(brazil_loss_stacked) == "small_scale_clearing"] <- "Small scale clearing"
+names(brazil_loss_stacked)[names(brazil_loss_stacked) == "tree_plantations_including_palm"] <- "Tree plantations including palm"
+names(brazil_loss_stacked)[names(brazil_loss_stacked) == "selective_logging"] <- "Selective logging"
+names(brazil_loss_stacked)[names(brazil_loss_stacked) == "other_infrastructure"] <- "Other infrastructure"
+names(brazil_loss_stacked)[names(brazil_loss_stacked) == "natural_disturbances"] <- "Natural disturbances"
+names(brazil_loss_stacked)[names(brazil_loss_stacked) == "flooding_due_to_dams"] <- "Flooding due to dams"
+names(brazil_loss_stacked)[names(brazil_loss_stacked) == "commercial_crops"] <- "Commercial crops"
+
+```
+
+
+```{r  fig.cap="Principales drivers de los procesos de deforestación para Brasil", out.width="80%", fig.align="center"}
+list <- c("entity","year","commercial_crops","selective_logging","pasture","fire","small_scale_clearing")
+brazil <- brazil_loss[ ,colnames(brazil_loss) %in% list, with=FALSE]
+
+
+brazil <- gather(brazil,"category","loss",3:7)
+
+
+loss <- ggplot(brazil) +
+  aes(fill=category,x = year, y = loss, colour = category, group = category) +
+  geom_bar(position="fill", stat="identity") +
+  scale_y_continuous(labels = scales::comma)+
+  labs(
+    y = "Loss of Lands in Hectare ",
+    title = "Loss of land due reasons"
+  ) +
+  #theme_atraf() +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(face = "bold",
+                              hjust = 0.5)
+  )
+loss
+# Turn it interactive with ggplotly
+#p <- ggplotly(loss)
+#p
+#+ transition_reveal(year)+
+#  view_follow(fixed_y = T)
+```
+```{r}
+theme_deforestation = function() {
+  theme_void() +
+  theme(
+    plot.margin = margin(.5, 1, .5, .5, "cm"),
+    plot.background = element_rect(fill = "lightblue1"),
+    plot.title = element_text(family = "Roboto Condensed", size = 18, hjust=0.5),
+    plot.caption = element_text(family = "Roboto Condensed", size = 6),
+    axis.text.y.left = element_blank(),
+    axis.text.x.bottom = element_blank(),
+    legend.position = "none",
+    text=element_text(family = "Roboto Condensed")
+  )
+}
+```
+
+### Conclusión
+
+A lo largo de este trabajo pudimos analizar la mágnitud del efecto de la deforestación a nivel mundial para el período 1990-2000. la tasa de pérdida neta de bosque disminuyó sustancialmente durante el período 1990-2020 debido a una reducción en la deforestación en algunos países, además de aumentos en el área forestal en otros a través de la forestación y la expansión natural de los bosques.Actualmente, África tiene la mayor tasa anual de pérdida neta de bosques de la última década, con 3,9 millones de hectáreas, seguida de América del Sur, con 2,6 millones de hectáreas. En contraste, la mayor ganancia neta de área forestal ocurrió en Asia.
+
+Entre los diez principales países del mundo con mayores pérdidas netas anuales promedio de área forestal en la última década se encuentran Brasil, Bolivia y Paraguay, así como República Democrática del Congo, Indonesia, Angola, República Unida de Tanzania, Myanmar, Camboya, y Mozambique.Los Estados que han, por el contrario, mejorado respecto a la deforestación son: China, Australia, India, Chile, Vietnam, Turquía, Estados Unidos de América, Francia, Italia, Rumania.
+
+
+### Referencias
+
+https://news.un.org/es/story/2020/07/1477741
+
+https://plotly-r.com/maps.html
+
+https://www.tidytuesday.com/
+
